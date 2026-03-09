@@ -1,0 +1,212 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: cic-togive-build-deploy
+  namespace: cic-togive-dev
+spec:
+  params:
+    - name: git-url
+      type: string
+      default: git@github.ibm.com:cic-austria/cic-to-give.git
+    - name: git-revision
+      type: string
+      default: main
+  workspaces:
+    - name: source
+  tasks:
+    # 1. Clone the repo
+    - name: git-clone
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.git-url)
+        - name: revision
+          value: $(params.git-revision)
+        - name: deleteExisting
+          value: "true"
+      workspaces:
+        - name: output
+          workspace: source
+
+    # 2. Build backend image
+    - name: build-backend
+      runAfter:
+        - git-clone
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      params:
+        - name: IMAGE
+          value: image-registry.openshift-image-registry.svc:5000/cic-togive-dev/backend:latest
+        - name: DOCKERFILE
+          value: ./backend/Dockerfile.prod
+        - name: CONTEXT
+          value: ./backend
+        - name: TLSVERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: source
+
+    # 3. Build frontend image
+    - name: build-frontend
+      runAfter:
+        - git-clone
+      taskRef:
+        name: buildah
+        kind: ClusterTask
+      params:
+        - name: IMAGE
+          value: image-registry.openshift-image-registry.svc:5000/cic-togive-dev/frontend:latest
+        - name: DOCKERFILE
+          value: ./Frontend/Dockerfile.prod
+        - name: CONTEXT
+          value: ./Frontend
+        - name: TLSVERIFY
+          value: "false"
+        - name: BUILD_EXTRA_ARGS
+          value: "--build-arg VITE_API_URL=/api"
+      workspaces:
+        - name: source
+          workspace: source
+
+    # 4. Rollout backend
+    - name: deploy-backend
+      runAfter:
+        - build-backend
+      taskRef:
+        name: deploy
+        kind: Task
+      params:
+        - name: deployment
+          value: backend
+
+    # 5. Rollout frontend
+    - name: deploy-frontend
+      runAfter:
+        - build-frontend
+      taskRef:
+        name: deploy
+        kind: Task
+      params:
+        - name: deployment
+          value: frontend
+---
+# Custom task for rollout restart
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy
+  namespace: cic-togive-dev
+spec:
+  params:
+    - name: deployment
+      type: string
+  steps:
+    - name: rollout
+      image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+      script: |
+        #!/bin/sh
+        oc rollout restart deployment/$(params.deployment) -n cic-togive-dev
+        oc rollout status deployment/$(params.deployment) -n cic-togive-dev --timeout=300s
+---
+# PVC for pipeline workspace
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pipeline-workspace
+  namespace: cic-togive-dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: ibmc-block-gold
+---
+# NOTE: github-ibm-ssh secret is created manually:
+# oc create secret generic github-ibm-ssh --from-file=ssh-privatekey=~/.ssh/id_ed25519 --type=kubernetes.io/ssh-auth
+# oc annotate secret github-ibm-ssh tekton.dev/git-0=github.ibm.com
+# oc secrets link pipeline github-ibm-ssh
+---
+# EventListener for GitHub webhook
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: cic-togive-webhook
+  namespace: cic-togive-dev
+spec:
+  serviceAccountName: pipeline
+  triggers:
+    - name: github-push
+      bindings:
+        - ref: cic-togive-binding
+      template:
+        ref: cic-togive-trigger
+---
+# TriggerBinding - extracts values from GitHub webhook payload
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: cic-togive-binding
+  namespace: cic-togive-dev
+spec:
+  params:
+    - name: git-url
+      value: $(body.repository.ssh_url)
+    - name: git-revision
+      value: $(body.after)
+---
+# TriggerTemplate - creates PipelineRun from webhook
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: cic-togive-trigger
+  namespace: cic-togive-dev
+spec:
+  params:
+    - name: git-url
+    - name: git-revision
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: cic-togive-run-
+      spec:
+        pipelineRef:
+          name: cic-togive-build-deploy
+        params:
+          - name: git-url
+            value: $(tt.params.git-url)
+          - name: git-revision
+            value: $(tt.params.git-revision)
+        workspaces:
+          - name: source
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 5Gi
+                storageClassName: ibmc-block-gold
+        serviceAccountName: pipeline
+---
+# Route for the EventListener (so GitHub can reach it)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: cic-togive-webhook
+  namespace: cic-togive-dev
+spec:
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: el-cic-togive-webhook
+    weight: 100
+  port:
+    targetPort: http-listener
