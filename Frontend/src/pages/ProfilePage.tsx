@@ -2,16 +2,6 @@ import { useState, useEffect } from "react";
 import { z } from "zod";
 import { profileApi } from "../utils/api.ts";
 
-interface PasswordData {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
-interface ZodError {
-  errors: Array<{ message: string }>;
-}
-
 // Zod Schema für Avatar-Upload
 const avatarSchema = z.object({
   avatar: z
@@ -29,32 +19,11 @@ const avatarSchema = z.object({
     }, "Nur JPG, PNG oder WebP Dateien sind erlaubt"),
 });
 
-// Zod Schema für Passwort-Änderung
-const passwordSchema = z
-  .object({
-    currentPassword: z.string().min(1, "Aktuelles Passwort ist erforderlich"),
-    newPassword: z
-      .string()
-      .min(6, "Neues Passwort muss mindestens 6 Zeichen lang sein"),
-    confirmPassword: z.string().min(1, "Passwort bestätigen ist erforderlich"),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    message: "Passwörter stimmen nicht überein",
-    path: ["confirmPassword"],
-  });
-
 export default function ProfilePage() {
   const [currentAvatar, setCurrentAvatar] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [passwordData, setPasswordData] = useState<PasswordData>({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // Profil beim Laden der Seite abrufen
   useEffect(() => {
@@ -99,7 +68,7 @@ export default function ProfilePage() {
         typeof validationError === "object" &&
         "errors" in validationError
       ) {
-        setError((validationError as ZodError).errors[0].message);
+        setError((validationError as { errors: Array<{ message: string }> }).errors[0].message);
       } else if (validationError instanceof Error) {
         setError(validationError.message);
       } else {
@@ -123,46 +92,6 @@ export default function ProfilePage() {
           ? error.message
           : "Fehler beim Entfernen des Avatars",
       );
-    }
-  };
-
-  const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    try {
-      setError("");
-      setSuccess("");
-
-      // Zod Validierung
-      passwordSchema.parse(passwordData);
-
-      setIsChangingPassword(true);
-
-      const result = await profileApi.changePassword(
-        passwordData.currentPassword,
-        passwordData.newPassword,
-      );
-      setSuccess(result.message);
-      setPasswordData({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      setShowPasswordForm(false);
-    } catch (validationError: unknown) {
-      if (
-        validationError &&
-        typeof validationError === "object" &&
-        "errors" in validationError
-      ) {
-        setError((validationError as ZodError).errors[0].message);
-      } else if (validationError instanceof Error) {
-        setError(validationError.message);
-      } else {
-        setError("Validierungsfehler");
-      }
-    } finally {
-      setIsChangingPassword(false);
     }
   };
 
@@ -327,138 +256,6 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Zusätzliche Aktionen */}
-        <div className="card bg-base-100 shadow-lg mt-6">
-          <div className="card-body">
-            <h3 className="card-title text-xl mb-4">
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                />
-              </svg>
-              Sicherheit
-            </h3>
-
-            {!showPasswordForm ? (
-              <button
-                className="btn btn-outline w-fit"
-                onClick={() => setShowPasswordForm(true)}
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-                  />
-                </svg>
-                Passwort ändern
-              </button>
-            ) : (
-              <form onSubmit={handlePasswordChange} className="space-y-4">
-                <div>
-                  <label className="label">
-                    <span className="label-text">Aktuelles Passwort</span>
-                  </label>
-                  <input
-                    type="password"
-                    className="input input-bordered w-full"
-                    value={passwordData.currentPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        currentPassword: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="label">
-                    <span className="label-text">Neues Passwort</span>
-                  </label>
-                  <input
-                    type="password"
-                    className="input input-bordered w-full"
-                    value={passwordData.newPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        newPassword: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="label">
-                    <span className="label-text">
-                      Neues Passwort bestätigen
-                    </span>
-                  </label>
-                  <input
-                    type="password"
-                    className="input input-bordered w-full"
-                    value={passwordData.confirmPassword}
-                    onChange={(e) =>
-                      setPasswordData({
-                        ...passwordData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={isChangingPassword}
-                  >
-                    {isChangingPassword ? (
-                      <>
-                        <span className="loading loading-spinner loading-sm"></span>
-                        Ändern...
-                      </>
-                    ) : (
-                      "Passwort ändern"
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={() => {
-                      setShowPasswordForm(false);
-                      setPasswordData({
-                        currentPassword: "",
-                        newPassword: "",
-                        confirmPassword: "",
-                      });
-                    }}
-                  >
-                    Abbrechen
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   );

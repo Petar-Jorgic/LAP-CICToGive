@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,9 +16,6 @@ public class ProfileService {
 
     @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private B2StorageService b2StorageService;
@@ -118,34 +114,6 @@ public class ProfileService {
                 "Fehler beim Entfernen des Avatars: " + e.getMessage()
             );
         }
-    }
-
-    public String changePassword(
-        String username,
-        ProfileDTO.ChangePasswordRequest request
-    ) {
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isEmpty()) {
-            throw new RuntimeException("User not found");
-        }
-
-        User user = userOpt.get();
-
-        // Verify current password
-        if (
-            !passwordEncoder.matches(
-                request.getCurrentPassword(),
-                user.getPassword()
-            )
-        ) {
-            throw new RuntimeException("Aktuelles Passwort ist falsch");
-        }
-
-        // Update password
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
-
-        return "Passwort erfolgreich geändert";
     }
 
     private void validateImageFile(MultipartFile file) {

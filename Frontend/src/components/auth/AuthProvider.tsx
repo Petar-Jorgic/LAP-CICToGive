@@ -1,129 +1,79 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router";
-import type {
-  AuthContextType,
-  LoginRequest,
-  RegisterRequest,
-  User,
-} from "../../types/Auth";
-import { authService } from "../../services/AuthService.ts";
+import type { AuthContextType, User } from "../../types/Auth";
 import { AuthContext } from "../../contexts/AuthContext.tsx";
+import { userManager } from "../../auth.config.ts";
 
 interface AuthProviderProps {
   children: React.ReactNode;
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState("");
-  // Initialize as true to prevent premature redirects on refresh
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize auth state from localStorage on mount
   useEffect(() => {
-    const initializeAuth = () => {
+    const initAuth = async () => {
       try {
-        const savedUser = localStorage.getItem("user");
-        const savedToken =
-          localStorage.getItem("token") || localStorage.getItem("authToken");
-        const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+        // Check if this is a callback from W3ID (hash contains tokens)
+        if (window.location.hash.includes("access_token")) {
+          const oidcUser = await userManager.signinRedirectCallback(
+            window.location.href,
+          );
+          // Clean up URL
+          window.history.replaceState({}, document.title, "/");
 
-        if (savedUser && savedToken && isLoggedIn) {
-          setUser(JSON.parse(savedUser));
-          setToken(savedToken);
+          if (oidcUser?.access_token) {
+            await fetchUser(oidcUser.access_token);
+          }
+          return;
+        }
+
+        // Check if we have an existing session
+        const oidcUser = await userManager.getUser();
+        if (oidcUser && !oidcUser.expired && oidcUser.access_token) {
+          await fetchUser(oidcUser.access_token);
+        } else {
+          setIsLoading(false);
         }
       } catch (error) {
-        console.error("Error initializing auth state:", error);
-        clearAuthData();
-      } finally {
-        // Always set loading to false after initialization
+        console.error("Auth initialization error:", error);
         setIsLoading(false);
       }
     };
 
-    initializeAuth();
+    initAuth();
   }, []);
 
-  const saveAuthData = (userData: {
-    id: number;
-    username: string;
-    email: string;
-    token?: string;
-  }) => {
-    const user: User = {
-      id: userData.id,
-      username: userData.username,
-      email: userData.email,
-    };
-
-    setUser(user);
-    localStorage.setItem("user", JSON.stringify(user));
-    localStorage.setItem("isLoggedIn", "true");
-
-    if (userData.token) {
-      setToken(userData.token);
-      localStorage.setItem("token", userData.token);
-      localStorage.setItem("authToken", userData.token); // Backward compatibility
+  const fetchUser = async (accessToken: string) => {
+    try {
+      const response = await fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const clearAuthData = () => {
+  const login = () => {
+    userManager.signinRedirect();
+  };
+
+  const logout = async () => {
+    await userManager.removeUser();
     setUser(null);
-    setToken("");
-    localStorage.removeItem("user");
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("token");
-    localStorage.removeItem("authToken"); // Clear both token keys
-  };
-
-  const login = async (credentials: LoginRequest): Promise<void> => {
-    setIsLoading(true);
-    try {
-      const response = await authService.login(credentials);
-      saveAuthData(response);
-
-      // Redirect to the page user was trying to access, or home by default
-      const origin = location.state?.from?.pathname || "/home";
-      navigate(origin, { replace: true });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const register = async (data: RegisterRequest): Promise<void> => {
-    setIsLoading(true);
-    try {
-      await authService.register(data);
-      // After successful registration, automatically log in
-      await login({ username: data.username, password: data.password });
-    } catch (error) {
-      setIsLoading(false);
-      throw error;
-    }
-  };
-
-  const logout = async (): Promise<void> => {
-    setIsLoading(true);
-    try {
-      await authService.logout();
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      clearAuthData();
-      setIsLoading(false);
-      navigate("/", { replace: true });
-    }
+    window.location.href = "/";
   };
 
   const value: AuthContextType = {
     user,
-    token,
-    isAuthenticated: !!user && !!token,
+    isAuthenticated: !!user,
     login,
-    register,
     logout,
     isLoading,
   };

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { User, Item, ItemComment } from "../types";
+import type { Item, ItemComment } from "../types";
 import { api } from "../services/api";
 
 // Types
@@ -29,27 +29,6 @@ const queryKeys = {
   user: ["user"] as const,
 };
 
-// Auth utilities
-
-const getCurrentUser = (): User | null => {
-  if (typeof window === "undefined") return null;
-
-  const userStr = localStorage.getItem("user");
-
-  return userStr ? JSON.parse(userStr) : null;
-};
-
-const isLoggedIn = (): boolean => {
-  if (typeof window === "undefined") return false;
-
-  return (
-    localStorage.getItem("isLoggedIn") === "true" &&
-    !!localStorage.getItem("user")
-  );
-};
-
-// Auth hooks
-
 // Items hooks
 
 export const useItems = (
@@ -65,7 +44,7 @@ export const useItems = (
 
   sortDir: string = "desc",
 ) => {
-  const currentUser = getCurrentUser();
+  const currentUser = null as { username?: string } | null;
   return useQuery({
     queryKey: [
       ...queryKeys.items(currentUser?.username),
@@ -99,7 +78,7 @@ export const useItems = (
 };
 
 export const useItem = (id: number, options?: { enabled?: boolean }) => {
-  const currentUser = getCurrentUser();
+  const currentUser = null as { username?: string } | null;
   return useQuery({
     queryKey: queryKeys.item(id, currentUser?.username),
 
@@ -113,7 +92,7 @@ export const useItem = (id: number, options?: { enabled?: boolean }) => {
 };
 
 export const useMyItems = () => {
-  const currentUser = getCurrentUser();
+  const currentUser = null as { username?: string } | null;
   return useQuery({
     queryKey: queryKeys.myItems(currentUser?.username),
 
@@ -123,7 +102,7 @@ export const useMyItems = () => {
       return response.data.data || response.data;
     },
 
-    enabled: isLoggedIn(),
+    enabled: true,
   });
 };
 
@@ -279,7 +258,6 @@ export const useCreateItem = () => {
       const response = await api.post("/items/create", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
         },
       });
 
@@ -295,14 +273,14 @@ export const useCreateItem = () => {
 
 // Simple hook to get all items (matches backend /items/all)
 export const useAllItems = () => {
-  const currentUser = getCurrentUser();
+  const currentUser = null as { username?: string } | null;
   return useQuery({
     queryKey: ["items", "all", { username: currentUser?.username }],
     queryFn: async (): Promise<Item[]> => {
       const response = await api.get("/items/all");
       return response.data.data || response.data || [];
     },
-    enabled: isLoggedIn(),
+    enabled: true,
   });
 };
 

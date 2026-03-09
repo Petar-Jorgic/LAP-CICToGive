@@ -8,12 +8,8 @@ import { ThemeToggle } from "./ui/ThemeToggle.tsx";
 export const Navbar: React.FC = () => {
   const { logout, isAuthenticated, isLoading } = useAuth();
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
+  const handleLogout = () => {
+    logout();
   };
 
   return (

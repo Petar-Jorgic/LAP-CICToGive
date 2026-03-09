@@ -97,33 +97,6 @@ public class ProfileController {
         }
     }
 
-    @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(
-        @Valid @RequestBody ProfileDTO.ChangePasswordRequest request
-    ) {
-        try {
-            Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
-            logger.debug(
-                "Password change request - Authentication: " + authentication
-            );
-            logger.debug(
-                "Password change request - Principal: " +
-                authentication.getName()
-            );
-
-            String username = authentication.getName();
-
-            String message = profileService.changePassword(username, request);
-            return ResponseEntity.ok(new SuccessResponse(message));
-        } catch (Exception e) {
-            logger.error("Error changing password", e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
-                new ErrorResponse(e.getMessage())
-            );
-        }
-    }
-
     // Inner classes for responses
     public static class ErrorResponse {
 
