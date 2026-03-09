@@ -6,7 +6,7 @@ const w3idConfig = {
   client_secret: "YmVhNGMxOWMtMzNlZC00",
   redirect_uri: window.location.origin,
   post_logout_redirect_uri: window.location.origin,
-  response_type: "id_token token",
+  response_type: "code",
   scope: "openid profile email",
   userStore: new WebStorageStateStore({ store: sessionStorage }),
   metadata: {

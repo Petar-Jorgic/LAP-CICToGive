@@ -14,8 +14,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Check if this is a callback from W3ID (hash contains tokens)
-        if (window.location.hash.includes("access_token")) {
+        // Check if this is a callback from W3ID (code flow returns ?code=)
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("code")) {
           const oidcUser = await userManager.signinRedirectCallback(
             window.location.href,
           );
