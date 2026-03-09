@@ -18,7 +18,7 @@ public class ProfileService {
     private UserRepository userRepository;
 
     @Autowired
-    private B2StorageService b2StorageService;
+    private LocalFileStorageService localFileStorageService;
 
     private static final List<String> ALLOWED_IMAGE_TYPES = Arrays.asList(
         "image/jpeg",
@@ -73,11 +73,12 @@ public class ProfileService {
                 UUID.randomUUID().toString() +
                 fileExtension;
 
-            // Upload to B2
-            String avatarUrl = b2StorageService.uploadImageWrapper(
+            // Upload to local storage (PVC)
+            String savedFileName = localFileStorageService.uploadImage(
                 file,
                 uniqueFilename
             );
+            String avatarUrl = "/api/files/download/" + savedFileName;
 
             // Update user in database
             user.setAvatarUrl(avatarUrl);

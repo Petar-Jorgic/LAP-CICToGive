@@ -11,7 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,16 +28,12 @@ public class FileController {
     @Autowired
     private FileStorageService fileStorageService;
 
-    /**
-     * Download file by filename
-     */
     @GetMapping("/download/{fileName:.+}")
     public ResponseEntity<Resource> downloadFile(
         @PathVariable String fileName
     ) {
         try {
             byte[] fileContent = fileStorageService.downloadFile(fileName);
-
             ByteArrayResource resource = new ByteArrayResource(fileContent);
 
             return ResponseEntity.ok()
@@ -49,18 +44,11 @@ public class FileController {
                 )
                 .body(resource);
         } catch (Exception e) {
-            logger.error(
-                "Error downloading file {}: {}",
-                fileName,
-                e.getMessage()
-            );
+            logger.error("Error downloading file {}: {}", fileName, e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }
 
-    /**
-     * Upload single file
-     */
     @PostMapping("/upload")
     public ResponseEntity<Map<String, Object>> uploadFile(
         @RequestParam("file") MultipartFile file
@@ -75,18 +63,10 @@ public class FileController {
             }
 
             String fileName =
-                "file_" +
-                System.currentTimeMillis() +
-                "_" +
-                file.getOriginalFilename();
+                "file_" + System.currentTimeMillis() + "_" + file.getOriginalFilename();
 
-            String uploadedFileName = fileStorageService.uploadFile(
-                file,
-                fileName
-            );
-            String downloadUrl = fileStorageService.getDownloadUrl(
-                uploadedFileName
-            );
+            String uploadedFileName = fileStorageService.uploadFile(file, fileName);
+            String downloadUrl = fileStorageService.getDownloadUrl(uploadedFileName);
 
             response.put("success", true);
             response.put("fileName", uploadedFileName);
@@ -102,9 +82,6 @@ public class FileController {
         }
     }
 
-    /**
-     * Upload multiple files
-     */
     @PostMapping("/upload/multiple")
     public ResponseEntity<Map<String, Object>> uploadMultipleFiles(
         @RequestParam("files") MultipartFile[] files
@@ -123,18 +100,10 @@ public class FileController {
             for (MultipartFile file : files) {
                 if (!file.isEmpty()) {
                     String fileName =
-                        "file_" +
-                        System.currentTimeMillis() +
-                        "_" +
-                        file.getOriginalFilename();
+                        "file_" + System.currentTimeMillis() + "_" + file.getOriginalFilename();
 
-                    String uploadedFileName = fileStorageService.uploadFile(
-                        file,
-                        fileName
-                    );
-                    String downloadUrl = fileStorageService.getDownloadUrl(
-                        uploadedFileName
-                    );
+                    String uploadedFileName = fileStorageService.uploadFile(file, fileName);
+                    String downloadUrl = fileStorageService.getDownloadUrl(uploadedFileName);
 
                     Map<String, Object> fileInfo = new HashMap<>();
                     fileInfo.put("fileName", uploadedFileName);
@@ -157,9 +126,6 @@ public class FileController {
         }
     }
 
-    /**
-     * Upload multiple images (matches frontend expectation)
-     */
     @PostMapping("/upload/images")
     public ResponseEntity<List<String>> uploadImages(
         @RequestParam("files") MultipartFile[] files
@@ -174,18 +140,10 @@ public class FileController {
             for (MultipartFile file : files) {
                 if (!file.isEmpty()) {
                     String fileName =
-                        "image_" +
-                        System.currentTimeMillis() +
-                        "_" +
-                        file.getOriginalFilename();
+                        "image_" + System.currentTimeMillis() + "_" + file.getOriginalFilename();
 
-                    String uploadedFileName = fileStorageService.uploadImage(
-                        file,
-                        fileName
-                    );
-                    String downloadUrl = fileStorageService.getDownloadUrl(
-                        uploadedFileName
-                    );
+                    String uploadedFileName = fileStorageService.uploadImage(file, fileName);
+                    String downloadUrl = fileStorageService.getDownloadUrl(uploadedFileName);
 
                     uploadedUrls.add(downloadUrl);
                 }
@@ -198,9 +156,6 @@ public class FileController {
         }
     }
 
-    /**
-     * Delete file
-     */
     @DeleteMapping("/delete/{fileName:.+}")
     public ResponseEntity<Map<String, Object>> deleteFile(
         @PathVariable String fileName
@@ -215,26 +170,18 @@ public class FileController {
             }
 
             fileStorageService.deleteFile(fileName);
-
             response.put("success", true);
             response.put("message", "File deleted successfully");
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error(
-                "Error deleting file {}: {}",
-                fileName,
-                e.getMessage()
-            );
+            logger.error("Error deleting file {}: {}", fileName, e.getMessage());
             response.put("success", false);
             response.put("error", e.getMessage());
             return ResponseEntity.internalServerError().body(response);
         }
     }
 
-    /**
-     * Check if file exists
-     */
     @GetMapping("/exists/{fileName:.+}")
     public ResponseEntity<Map<String, Object>> fileExists(
         @PathVariable String fileName
@@ -243,27 +190,19 @@ public class FileController {
 
         try {
             boolean exists = fileStorageService.fileExists(fileName);
-
             response.put("success", true);
             response.put("exists", exists);
             response.put("fileName", fileName);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error(
-                "Error checking file existence {}: {}",
-                fileName,
-                e.getMessage()
-            );
+            logger.error("Error checking file existence {}: {}", fileName, e.getMessage());
             response.put("success", false);
             response.put("error", e.getMessage());
             return ResponseEntity.internalServerError().body(response);
         }
     }
 
-    /**
-     * List all files
-     */
     @GetMapping("/list")
     public ResponseEntity<Map<String, Object>> listFiles(
         @RequestParam(value = "maxCount", defaultValue = "100") int maxCount
@@ -273,7 +212,6 @@ public class FileController {
         try {
             List<String> files = fileStorageService.listFiles();
 
-            // Limit results
             if (files.size() > maxCount) {
                 files = files.subList(0, maxCount);
             }
@@ -291,9 +229,6 @@ public class FileController {
         }
     }
 
-    /**
-     * Get file metadata
-     */
     @GetMapping("/info/{fileName:.+}")
     public ResponseEntity<Map<String, Object>> getFileInfo(
         @PathVariable String fileName
@@ -307,35 +242,24 @@ public class FileController {
                 return ResponseEntity.status(404).body(response);
             }
 
-            Map<String, String> metadata = fileStorageService.getFileMetadata(
-                fileName
-            );
-
+            Map<String, String> metadata = fileStorageService.getFileMetadata(fileName);
             response.put("success", true);
             response.put("fileName", fileName);
             response.put("metadata", metadata);
 
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error(
-                "Error getting file info {}: {}",
-                fileName,
-                e.getMessage()
-            );
+            logger.error("Error getting file info {}: {}", fileName, e.getMessage());
             response.put("success", false);
             response.put("error", e.getMessage());
             return ResponseEntity.internalServerError().body(response);
         }
     }
 
-    /**
-     * Get storage health status
-     */
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> getHealthStatus() {
         try {
-            Map<String, Object> healthStatus =
-                fileStorageService.getHealthStatus();
+            Map<String, Object> healthStatus = fileStorageService.getHealthStatus();
             return ResponseEntity.ok(healthStatus);
         } catch (Exception e) {
             logger.error("Error getting health status: {}", e.getMessage());
@@ -343,108 +267,6 @@ public class FileController {
             response.put("healthy", false);
             response.put("error", e.getMessage());
             return ResponseEntity.internalServerError().body(response);
-        }
-    }
-
-    /**
-     * Get storage info
-     */
-    @GetMapping("/storage/info")
-    public ResponseEntity<Map<String, Object>> getStorageInfo() {
-        Map<String, Object> response = new HashMap<>();
-
-        try {
-            String storageInfo = fileStorageService.getStorageInfo();
-            String currentStorage = fileStorageService.getCurrentStorageType();
-            boolean b2Available = fileStorageService.isB2Available();
-
-            response.put("success", true);
-            response.put("storageType", currentStorage);
-            response.put("b2Available", b2Available);
-            response.put("info", storageInfo);
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error getting storage info: {}", e.getMessage());
-            response.put("success", false);
-            response.put("error", e.getMessage());
-            return ResponseEntity.internalServerError().body(response);
-        }
-    }
-
-    /**
-     * Retry B2 connection
-     */
-    @PostMapping("/storage/retry-b2")
-    public ResponseEntity<Map<String, Object>> retryB2Connection() {
-        Map<String, Object> response = new HashMap<>();
-
-        try {
-            fileStorageService.retryB2Connection();
-
-            response.put("success", true);
-            response.put("message", "B2 connection retry initiated");
-            response.put("b2Available", fileStorageService.isB2Available());
-            response.put(
-                "currentStorage",
-                fileStorageService.getCurrentStorageType()
-            );
-
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error retrying B2 connection: {}", e.getMessage());
-            response.put("success", false);
-            response.put("error", e.getMessage());
-            return ResponseEntity.internalServerError().body(response);
-        }
-    }
-
-    /**
-     * Debug endpoint to check B2 URL generation
-     */
-    @GetMapping("/debug/url/{fileName}")
-    public ResponseEntity<Map<String, Object>> debugUrl(
-        @PathVariable String fileName
-    ) {
-        Map<String, Object> response = new HashMap<>();
-
-        try {
-            // Check if file exists
-            boolean exists = fileStorageService.fileExists(fileName);
-            response.put("fileExists", exists);
-            response.put("fileName", fileName);
-
-            if (exists) {
-                // Get standard download URL
-                String downloadUrl = fileStorageService.getDownloadUrl(
-                    fileName
-                );
-                response.put("downloadUrl", downloadUrl);
-
-                // Get authorized download URL with 1 hour expiry
-                String authorizedUrl = fileStorageService.getDownloadUrl(
-                    fileName,
-                    3600
-                );
-                response.put("authorizedUrl", authorizedUrl);
-
-                // Check if B2 is available
-                response.put("b2Available", fileStorageService.isB2Available());
-
-                logger.info("Debug URL generated for file: {}", fileName);
-                logger.info("Download URL: {}", downloadUrl);
-                logger.info("Authorized URL: {}", authorizedUrl);
-            }
-
-            response.put("success", true);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            logger.error("Error debugging URL for file: {}", fileName, e);
-            response.put("success", false);
-            response.put("error", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                response
-            );
         }
     }
 }

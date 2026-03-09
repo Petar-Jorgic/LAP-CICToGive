@@ -58,17 +58,6 @@
 			<scope>runtime</scope>
 			<optional>true</optional>
 		</dependency>
-		<!-- Backblaze B2 SDK -->
-		<dependency>
-			<groupId>com.backblaze.b2</groupId>
-			<artifactId>b2-sdk-core</artifactId>
-			<version>6.4.0</version>
-		</dependency>
-		<dependency>
-			<groupId>com.backblaze.b2</groupId>
-			<artifactId>b2-sdk-httpclient</artifactId>
-			<version>6.4.0</version>
-		</dependency>
 		<!-- Test Dependencies -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

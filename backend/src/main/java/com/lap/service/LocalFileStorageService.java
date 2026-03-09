@@ -42,8 +42,9 @@ public class LocalFileStorageService {
                 fileName = generateFileName(file.getOriginalFilename());
             }
 
-            // Save file to local storage
+            // Save file to local storage (create subdirectories if needed)
             Path filePath = uploadDir.resolve(fileName);
+            Files.createDirectories(filePath.getParent());
             Files.copy(
                 file.getInputStream(),
                 filePath,
