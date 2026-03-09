@@ -14,7 +14,6 @@
     "@tanstack/react-query": "^5.81.5",
     "axios": "^1.10.0",
     "daisyui": "^5.0.43",
-    "oidc-client-ts": "^3.4.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.59.0",

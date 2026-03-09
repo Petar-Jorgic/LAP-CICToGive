@@ -1,5 +1,5 @@
 import axios from "axios";
-import { userManager } from "../auth.config";
+import { getAccessToken, loginRedirect } from "../auth.config";
 
 export const api = axios.create({
   baseURL: "/api",
@@ -7,10 +7,10 @@ export const api = axios.create({
 });
 
 // Add Bearer token to all requests
-api.interceptors.request.use(async (config) => {
-  const user = await userManager.getUser();
-  if (user?.access_token) {
-    config.headers.Authorization = `Bearer ${user.access_token}`;
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -20,7 +20,7 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      userManager.signinRedirect();
+      loginRedirect();
     }
     return Promise.reject(error);
   },

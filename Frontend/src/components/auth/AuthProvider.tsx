@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
 import type { AuthContextType, User } from "../../types/Auth";
 import { AuthContext } from "../../contexts/AuthContext.tsx";
-import { userManager } from "../../auth.config.ts";
+import {
+  loginRedirect,
+  parseCallback,
+  getAccessToken,
+  clearAuth,
+} from "../../auth.config.ts";
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -14,25 +19,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        // Check if this is a callback from W3ID (code flow returns ?code=)
-        const params = new URLSearchParams(window.location.search);
-        if (params.has("code")) {
-          const oidcUser = await userManager.signinRedirectCallback(
-            window.location.href,
-          );
-          // Clean up URL
+        // Check if this is a callback from W3ID (hash contains access_token)
+        const callbackToken = parseCallback();
+        if (callbackToken) {
           window.history.replaceState({}, document.title, "/");
-
-          if (oidcUser?.access_token) {
-            await fetchUser(oidcUser.access_token);
-          }
+          await fetchUser(callbackToken);
           return;
         }
 
-        // Check if we have an existing session
-        const oidcUser = await userManager.getUser();
-        if (oidcUser && !oidcUser.expired && oidcUser.access_token) {
-          await fetchUser(oidcUser.access_token);
+        // Check if we have an existing token
+        const token = getAccessToken();
+        if (token) {
+          await fetchUser(token);
         } else {
           setIsLoading(false);
         }
@@ -53,23 +51,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+      } else {
+        clearAuth();
       }
     } catch (error) {
       console.error("Failed to fetch user:", error);
+      clearAuth();
     } finally {
       setIsLoading(false);
     }
   };
 
   const login = () => {
-    userManager.signinRedirect().catch((err) => {
-      console.error("W3ID redirect failed:", err);
-      alert("Login-Redirect fehlgeschlagen: " + err.message);
-    });
+    loginRedirect();
   };
 
-  const logout = async () => {
-    await userManager.removeUser();
+  const logout = () => {
+    clearAuth();
     setUser(null);
     window.location.href = "/";
   };

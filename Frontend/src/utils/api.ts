@@ -1,4 +1,4 @@
-import { userManager } from "../auth.config";
+import { getAccessToken, loginRedirect } from "../auth.config";
 
 interface ProfileResponse {
   id: number;
@@ -17,14 +17,9 @@ interface SuccessResponse {
   status: string;
 }
 
-const getAccessToken = async (): Promise<string | null> => {
-  const user = await userManager.getUser();
-  return user?.access_token ?? null;
-};
-
 export const api = {
   fetch: async (url: string, options: RequestInit = {}): Promise<Response> => {
-    const token = await getAccessToken();
+    const token = getAccessToken();
 
     const config: RequestInit = {
       ...options,
@@ -42,7 +37,7 @@ export const api = {
     const response = await fetch(url, config);
 
     if (response.status === 401) {
-      userManager.signinRedirect();
+      loginRedirect();
       throw new Error("Unauthorized");
     }
 

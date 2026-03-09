@@ -24,7 +24,7 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(authz ->
                 authz
-                    .requestMatchers("/api/auth/me").permitAll()
+                    .requestMatchers("/api/auth/me").authenticated()
                     .requestMatchers("/api/items/all").permitAll()
                     .requestMatchers("/api/files/download/**").permitAll()
                     .requestMatchers("/api/files/health").permitAll()
