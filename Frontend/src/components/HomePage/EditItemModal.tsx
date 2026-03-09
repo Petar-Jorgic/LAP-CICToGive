@@ -1,9 +1,9 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useUpdateItem, useDeleteImage, useItem } from "../../hooks/useAPI";
+import { useUpdateItem, useDeleteItem, useDeleteImage, useItem } from "../../hooks/useAPI";
 import type { Item } from "../../types";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { CATEGORIES, CONDITIONS } from "../../schemas/ItemSchemas";
 
 const schema = z.object({
@@ -34,7 +34,9 @@ export default function EditItemModal({ item, isOpen, onClose }: Props) {
   });
 
   const updateItemMutation = useUpdateItem();
+  const deleteItemMutation = useDeleteItem();
   const deleteImageMutation = useDeleteImage();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Use live data from query instead of stale prop
   const { data: currentItem } = useItem(item?.id || 0, {
@@ -90,7 +92,20 @@ export default function EditItemModal({ item, isOpen, onClose }: Props) {
     }
   };
 
+  const handleDeleteItem = async () => {
+    if (!displayItem) return;
+    try {
+      await deleteItemMutation.mutateAsync(displayItem.id);
+      setShowDeleteConfirm(false);
+      reset();
+      onClose();
+    } catch (error) {
+      console.error("Failed to delete item:", error);
+    }
+  };
+
   const handleClose = () => {
+    setShowDeleteConfirm(false);
     reset();
     onClose();
   };
@@ -250,25 +265,57 @@ export default function EditItemModal({ item, isOpen, onClose }: Props) {
               )}
             </div>
 
-            <div className="flex gap-2 pt-4">
-              <button
-                type="button"
-                onClick={handleClose}
-                className="btn btn-ghost flex-1"
-                disabled={updateItemMutation.isPending}
-              >
-                Abbrechen
-              </button>
-              <button
-                type="submit"
-                className="btn btn-primary flex-1"
-                disabled={updateItemMutation.isPending}
-              >
-                {updateItemMutation.isPending
-                  ? "Wird aktualisiert..."
-                  : "Aktualisieren"}
-              </button>
-            </div>
+            {showDeleteConfirm ? (
+              <div className="bg-error/10 border border-error rounded-lg p-4 mt-4">
+                <p className="text-sm mb-3">Artikel wirklich löschen? Das kann nicht rückgängig gemacht werden.</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="btn btn-ghost btn-sm flex-1"
+                    disabled={deleteItemMutation.isPending}
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteItem}
+                    className="btn btn-error btn-sm flex-1"
+                    disabled={deleteItemMutation.isPending}
+                  >
+                    {deleteItemMutation.isPending ? "Wird gelöscht..." : "Endgültig löschen"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="btn btn-error btn-outline"
+                  disabled={updateItemMutation.isPending}
+                >
+                  Löschen
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  className="btn btn-ghost flex-1"
+                  disabled={updateItemMutation.isPending}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary flex-1"
+                  disabled={updateItemMutation.isPending}
+                >
+                  {updateItemMutation.isPending
+                    ? "Wird aktualisiert..."
+                    : "Aktualisieren"}
+                </button>
+              </div>
+            )}
           </form>
         </div>
       </div>

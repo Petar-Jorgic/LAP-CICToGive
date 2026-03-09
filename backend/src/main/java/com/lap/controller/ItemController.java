@@ -7,7 +7,6 @@ import com.lap.repository.UserRepository;
 import com.lap.service.FileStorageService;
 import java.util.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/items")
 @CrossOrigin(origins = "*")
 public class ItemController {
-
-    @Value("${server.port:8080}")
-    private String serverPort;
 
     @Autowired
     private ItemRepository itemRepository;
@@ -82,11 +78,6 @@ public class ItemController {
                             String imageUrl = fileStorageService.getDownloadUrl(
                                 fileName
                             );
-                            // Convert relative URL to absolute URL for frontend
-                            if (imageUrl.startsWith("/api/")) {
-                                imageUrl =
-                                    "http://localhost:" + serverPort + imageUrl;
-                            }
                             imageUrls.add(imageUrl);
                         }
                     }
@@ -460,19 +451,7 @@ public class ItemController {
         itemMap.put("location", item.getLocation());
         itemMap.put("condition", item.getCondition());
 
-        // Convert relative URLs to absolute URLs for private B2 bucket
-        List<String> absoluteUrls = new ArrayList<>();
-        if (item.getImageUrls() != null) {
-            for (String url : item.getImageUrls()) {
-                if (url.startsWith("/api/")) {
-                    // Convert relative URL to absolute URL
-                    absoluteUrls.add("http://localhost:" + serverPort + url);
-                } else {
-                    absoluteUrls.add(url);
-                }
-            }
-        }
-        itemMap.put("imageUrls", absoluteUrls);
+        itemMap.put("imageUrls", item.getImageUrls() != null ? item.getImageUrls() : new ArrayList<>());
 
         itemMap.put("isReserved", item.getIsReserved());
         itemMap.put(
@@ -619,11 +598,6 @@ public class ItemController {
                             String imageUrl = fileStorageService.getDownloadUrl(
                                 fileName
                             );
-                            // Convert relative URL to absolute URL for frontend
-                            if (imageUrl.startsWith("/api/")) {
-                                imageUrl =
-                                    "http://localhost:" + serverPort + imageUrl;
-                            }
                             newImageUrls.add(imageUrl);
                         }
                     }
@@ -715,11 +689,6 @@ public class ItemController {
                         String imageUrl = fileStorageService.getDownloadUrl(
                             fileName
                         );
-                        // Convert relative URL to absolute URL for frontend
-                        if (imageUrl.startsWith("/api/")) {
-                            imageUrl =
-                                "http://localhost:" + serverPort + imageUrl;
-                        }
                         newImageUrls.add(imageUrl);
                     }
                 }

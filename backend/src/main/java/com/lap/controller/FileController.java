@@ -36,11 +36,24 @@ public class FileController {
             byte[] fileContent = fileStorageService.downloadFile(fileName);
             ByteArrayResource resource = new ByteArrayResource(fileContent);
 
+            // Determine content type from file extension
+            MediaType contentType = MediaType.APPLICATION_OCTET_STREAM;
+            String lowerName = fileName.toLowerCase();
+            if (lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg")) {
+                contentType = MediaType.IMAGE_JPEG;
+            } else if (lowerName.endsWith(".png")) {
+                contentType = MediaType.IMAGE_PNG;
+            } else if (lowerName.endsWith(".gif")) {
+                contentType = MediaType.IMAGE_GIF;
+            } else if (lowerName.endsWith(".webp")) {
+                contentType = MediaType.parseMediaType("image/webp");
+            }
+
             return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentType(contentType)
                 .header(
                     HttpHeaders.CONTENT_DISPOSITION,
-                    "attachment; filename=\"" + fileName + "\""
+                    "inline; filename=\"" + fileName + "\""
                 )
                 .body(resource);
         } catch (Exception e) {
