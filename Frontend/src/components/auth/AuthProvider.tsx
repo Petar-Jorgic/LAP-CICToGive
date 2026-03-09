@@ -61,7 +61,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const login = () => {
-    userManager.signinRedirect();
+    userManager.signinRedirect().catch((err) => {
+      console.error("W3ID redirect failed:", err);
+      alert("Login-Redirect fehlgeschlagen: " + err.message);
+    });
   };
 
   const logout = async () => {
