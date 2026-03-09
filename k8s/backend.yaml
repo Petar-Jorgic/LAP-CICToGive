@@ -6,7 +6,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: ibmc-file-gold
+  storageClassName: ibmc-file-gold-gid
   resources:
     requests:
       storage: 10Gi
@@ -59,8 +59,6 @@ spec:
       labels:
         app: backend
     spec:
-      securityContext:
-        fsGroup: 0
       containers:
         - name: backend
           image: image-registry.openshift-image-registry.svc:5000/cic-togive-dev/backend:latest
